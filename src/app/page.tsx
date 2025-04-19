@@ -138,6 +138,9 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const selectedTeamOption = options.find(option => option.value === teamId);
+  const selectedCompareOption = options.find(option => option.value === compareTeamId);
+
   return (
     <div className="p-4">
         Team
@@ -147,6 +150,7 @@ const HomePage: React.FC = () => {
           options={options}
           onChange={handleChange}
           styles={customStyles}
+          value={selectedTeamOption}
           placeholder="Give a FACEIT team id, team URL or select a previously queried team"
       />
 
@@ -158,6 +162,7 @@ const HomePage: React.FC = () => {
           onChange={handleCompareTeamChange}
           styles={customStyles}
           placeholder="Compare"
+          value={selectedCompareOption}
       />
       {teamId && <MatchAnalysis teamId={teamId} compare={compareTeamId} />}
     </div>
