@@ -46,29 +46,29 @@ const HomePage: React.FC = () => {
     setSavedInput(savedInputs);
   }, [])
 
-  const handleChange = (newValue: Option | null) => {
-    if (newValue) {
-      let newTeamId: string = newValue.value;
-      setTeamId(newTeamId);
-
-      const urlPattern = /\/teams\/([a-f0-9-]+)/i;
-      const urlMatch = newTeamId.match(urlPattern);
-
-      if (urlMatch) {
-        newTeamId = urlMatch[1]; // Extract the team ID from the URL
-      }
-
-      if (teamId) {
+    const handleChange = (newValue: Option | null) => {
+      if (newValue) {
+        let newTeamId: string = newValue.value;
         setTeamId(newTeamId);
-        const query = new URLSearchParams(window.location.search);
-        query.set('teamId', newTeamId);
-        router.push(`?${query.toString()}`, { scroll: false });
+
+        const urlPattern = /\/teams\/([a-f0-9-]+)/i;
+        const urlMatch = newTeamId.match(urlPattern);
+
+        if (urlMatch) {
+          newTeamId = urlMatch[1]; // Extract the team ID from the URL
+        }
+
+        if (newTeamId) {
+          setTeamId(newTeamId);
+          const query = new URLSearchParams(window.location.search);
+          query.set('teamId', newTeamId);
+          router.push(`?${query.toString()}`, { scroll: false });
+        }
+      } else {
+        setTeamId('');
+        router.push("/");
       }
-    } else {
-      setTeamId('');
-      router.push("/");
-    }
-  };
+    };
 
   const handleCompareTeamChange = (newValue: Option | null) => {
     if (newValue) {
