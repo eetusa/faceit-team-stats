@@ -99,14 +99,14 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
         <h2 className="mb-4 text-xl font-bold">Combined Analysis</h2>
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-100">
+            <tr className="bg-gray-100 dark:bg-gray-800">
               <th className="p-2 border border-gray-300 text-center" rowSpan={2}>Map</th>
               <th className="p-2 border border-gray-300 text-center" colSpan={3}>Total Matches</th>
               <th className="p-2 border border-gray-300 text-center" colSpan={3}>Wins</th>
               <th className="p-2 border border-gray-300 text-center" colSpan={3}>Win Percentage</th>
               <th className="p-2 border border-gray-300 text-center" colSpan={3}>Average Round Difference</th>
             </tr>
-            <tr className="bg-gray-100">
+            <tr className="bg-gray-100 dark:bg-gray-800">
               <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
               <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
               <th className="p-2 border border-gray-300 text-center">Diff</th>
@@ -145,7 +145,7 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
 
               // Render sorted maps
               return mapsWithTeamAWinPercentage.map(({ map, teamAResult, teamBResult }, index) => (
-                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'}>
                   <td className="p-2 border border-gray-300 text-center">{map}</td>
                   <td className="p-2 border border-gray-300 text-center">{teamAResult.totalMatches}</td>
                   <td className="p-2 border border-gray-300 text-center">{teamBResult.totalMatches}</td>
