@@ -38,12 +38,34 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const teamIdFromUrl = searchParams.get('teamId');
     const compareIdFromUrl = searchParams.get('compare');
+    const unixBefore = searchParams.get('beforeDate');
+    const unixAfter = searchParams.get('afterDate');
 
     if (teamIdFromUrl) {
       setTeamId(teamIdFromUrl);
     }
     if (compareIdFromUrl) {
       setCompareTeamId(compareIdFromUrl);
+    }
+    console.log("ASD")
+    console.log(unixAfter)
+    console.log(unixBefore)
+    if (unixBefore) {
+      const unixTimestamp = Number(unixBefore);
+      if (!isNaN(unixTimestamp)) {
+        setBeforeDate(new Date(unixTimestamp * 1000)); // Convert seconds to milliseconds
+      } else {
+        console.error('Invalid Unix timestamp provided.');
+      }
+    }
+
+    if (unixAfter) {
+      const unixTimestamp = Number(unixAfter);
+      if (!isNaN(unixTimestamp)) {
+        setAfterDate(new Date(unixTimestamp * 1000)); // Convert seconds to milliseconds
+      } else {
+        console.error('Invalid Unix timestamp provided.');
+      }
     }
 
     const parsedOptions: Option[] = savedInputs.map((input) => {
@@ -77,6 +99,11 @@ const HomePage: React.FC = () => {
       console.log(matchesEarliestDate, matchesLatestDate)
   }, [matchesEarliestDate, matchesLatestDate])
 
+  useEffect(() => {
+    console.log("====")
+    console.log(afterDate, beforeDate)
+  }, [afterDate, beforeDate])
+
     const handleChange = (newValue: Option | null) => {
       if (newValue) {
         let newTeamId: string = newValue.value;
@@ -97,7 +124,9 @@ const HomePage: React.FC = () => {
         }
       } else {
         setTeamId('');
-        router.push("/");
+        const query = new URLSearchParams(window.location.search);
+        query.delete('teamId');
+        router.push(`?${query.toString()}`, { scroll: false });
       }
     };
 
@@ -137,16 +166,72 @@ const HomePage: React.FC = () => {
         newTeamId = urlMatch[1]; // Extract the team ID from the URL
       }
 
-      if (newTeamId && teamId && teamId != '') {
+      if (newTeamId) {
         setCompareTeamId(newTeamId);
         const query = new URLSearchParams(window.location.search);
-        query.set('teamId', teamId);
         query.set('compare', newTeamId)
         router.push(`?${query.toString()}`, { scroll: false });
       }
     } else {
       setCompareTeamId('');
-      router.push("/");
+      const query = new URLSearchParams(window.location.search);
+      query.delete('compare');
+      router.push(`?${query.toString()}`, { scroll: false });
+    }
+  };
+
+  const handleSetDateBefore = (newDate: Date | null) => {
+    if (newDate == null || newDate == undefined) {
+      setBeforeDate(undefined);
+      const query = new URLSearchParams(window.location.search);
+      query.delete('beforeDate');
+      router.push(`?${query.toString()}`, { scroll: false });
+    } else {
+      setBeforeDate(newDate);
+      // Convert the date to a Unix timestamp (in seconds)
+      const unixTimestamp = Math.floor(newDate.getTime() / 1000);
+      
+      // Update the URL with the Unix timestamp
+      const query = new URLSearchParams(window.location.search);
+      if (teamId && teamId !== '') {
+        query.set('teamId', teamId);
+      }
+      if (compareTeamId && compareTeamId !== '') {
+        query.set('compare', compareTeamId);
+      }
+      if (afterDate && afterDate !== null && afterDate !== undefined) {
+        query.set('afterDate', Math.floor(afterDate.getTime() / 1000).toString());
+      }
+      query.set('beforeDate', unixTimestamp.toString());
+      router.push(`?${query.toString()}`, { scroll: false });
+    }
+  };
+
+  const handleSetDateAfter = (newDate: Date | null) => {
+    if (newDate == null || newDate == undefined) {
+      console.log("here")
+      setAfterDate(undefined);
+      const query = new URLSearchParams(window.location.search);
+      query.delete('afterDate');
+      router.push(`?${query.toString()}`, { scroll: false });
+    } else {
+      setAfterDate(newDate);
+      // Convert the date to a Unix timestamp (in seconds)
+      const unixTimestamp = Math.floor(newDate.getTime() / 1000);
+      
+      // Update the URL with the Unix timestamp
+      const query = new URLSearchParams(window.location.search);
+      if (teamId && teamId !== '') {
+        query.set('teamId', teamId);
+      }
+      if (compareTeamId && compareTeamId !== '') {
+        query.set('compare', compareTeamId);
+      }
+      if (beforeDate && beforeDate !== null && beforeDate !== undefined) {
+        query.set('beforeDate', Math.floor(beforeDate.getTime() / 1000).toString());
+      }
+      query.set('afterDate', unixTimestamp.toString());
+      router.push(`?${query.toString()}`, { scroll: false });
     }
   };
 
@@ -180,13 +265,7 @@ const HomePage: React.FC = () => {
       <div>After Date</div>
       <DatePicker
         selected={afterDate}
-        onChange={(newDate) => {
-          if (newDate == null) {
-            setAfterDate(undefined)
-          } else {
-            setAfterDate(newDate);
-          }
-        }}
+        onChange={handleSetDateAfter}
         placeholderText="Select after date"
         className={isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-black'}
         showPopperArrow={false}
@@ -205,13 +284,7 @@ const HomePage: React.FC = () => {
       <div>Before Date</div>
       <DatePicker
         selected={beforeDate}
-        onChange={(newDate) => {
-          if (newDate == null) {
-            setBeforeDate(undefined)
-          } else {
-            setBeforeDate(newDate);
-          }
-        }}
+        onChange={handleSetDateBefore}
         placeholderText="Select before date"
         className={isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-black'}
         showPopperArrow={false}
