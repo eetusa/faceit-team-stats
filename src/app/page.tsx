@@ -14,6 +14,8 @@ const MatchAnalysis = dynamic(() => import('./components/MatchAnalysis'), { ssr:
 
 const HomePage: React.FC = () => {
   const [teamId, setTeamId] = useState('');
+  const [compareTeamId, setCompareTeamId] = useState('');
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const savedInputs = useSavedInputsStore((state) => state.savedInputs);
@@ -46,31 +48,76 @@ const HomePage: React.FC = () => {
 
   const handleChange = (newValue: Option | null) => {
     if (newValue) {
-      const teamId: string = newValue.value;
-      setTeamId(teamId);
+      let newTeamId: string = newValue.value;
+      setTeamId(newTeamId);
 
-      // Update the URL query parameters
-      const query = new URLSearchParams(window.location.search);
-      query.set('teamId', teamId);
-      // Assuming you have a routing mechanism in place
-      router.push(`?${query.toString()}`, { scroll: false });
+      const urlPattern = /\/teams\/([a-f0-9-]+)/i;
+      const urlMatch = newTeamId.match(urlPattern);
+
+      if (urlMatch) {
+        newTeamId = urlMatch[1]; // Extract the team ID from the URL
+      }
+
+      if (teamId) {
+        setTeamId(newTeamId);
+        const query = new URLSearchParams(window.location.search);
+        query.set('teamId', newTeamId);
+        router.push(`?${query.toString()}`, { scroll: false });
+      }
     } else {
       setTeamId('');
       router.push("/");
     }
   };
 
+  const handleCompareTeamChange = (newValue: Option | null) => {
+    if (newValue) {
+      let newTeamId: string = newValue.value;
+      setCompareTeamId(newTeamId);
+
+      const urlPattern = /\/teams\/([a-f0-9-]+)/i;
+      const urlMatch = newTeamId.match(urlPattern);
+
+      if (urlMatch) {
+        newTeamId = urlMatch[1]; // Extract the team ID from the URL
+      }
+
+      if (newTeamId && teamId && teamId != '') {
+        setCompareTeamId(newTeamId);
+        const query = new URLSearchParams(window.location.search);
+        query.set('teamId', teamId);
+        query.set('compare', newTeamId)
+        router.push(`?${query.toString()}`, { scroll: false });
+      }
+    } else {
+      setCompareTeamId('');
+      router.push("/");
+    }
+  };
+
   return (
     <div className="p-4">
+        Team
         <Creatable
           instanceId="UUID123ixkshy"
           isClearable
           options={options}
           onChange={handleChange}
-          placeholder="Select or query for a team"
+          placeholder="Give a FACEIT team id, team URL or select a previously queried team"
       />
-      {teamId && <MatchAnalysis teamId={teamId} />}
+
+      Compare
+      <Creatable
+          instanceId="UUID123ixkshy"
+          isClearable
+          options={options}
+          onChange={handleCompareTeamChange}
+          placeholder="Compare"
+      />
+      {teamId && <MatchAnalysis teamId={teamId} compare={compareTeamId} />}
     </div>
+
+    
   );
 };
 

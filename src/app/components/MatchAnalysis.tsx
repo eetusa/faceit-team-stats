@@ -4,9 +4,12 @@ import { Match } from '../types/Match';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useSavedInputsStore } from '../stores/savedInputsStore';
+import { AnalysisResult, analyzeMatches } from '../util/analysisUtils';
+import SingleTeamAnalysis from './SingleTeamAnalysis';
 
 interface MatchAnalysisProps {
     teamId: string;
+    compare: string
   }
   
 const fetchMatches = async (teamId: string): Promise<Match[]> => {
@@ -17,13 +20,33 @@ const fetchMatches = async (teamId: string): Promise<Match[]> => {
   return response.json();
 };
 
-const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId }) => {
+
+const getTeamResult = (teamResults: AnalysisResult[], map: string): AnalysisResult => {
+  const result = teamResults.find((r: AnalysisResult) => r.map === map);
+  return result || {
+    map,
+    totalMatches: 0,
+    wins: 0,
+    winPercentage: "0.00",
+    averageRoundDifference: "0.00"
+  };
+};
+
+const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
+    const addInput = useSavedInputsStore((state) => state.addInput);
+
     const { data: matches, error, isLoading } = useQuery({
       queryKey: ['fetchMatches', teamId],
       queryFn: () => fetchMatches(teamId),
       enabled: !!teamId
     });
-    const addInput = useSavedInputsStore((state) => state.addInput);
+
+    const { data: comparisonMatches, error: comparisonError, isLoading: comparisonLoading } = useQuery({
+      queryKey: ['fetchComparisonData', compare],
+      queryFn: () => fetchMatches(compare),
+      enabled: !!compare,
+    });
+
 
     useEffect(() => {
       if (matches && matches.length > 0) {
@@ -33,83 +56,124 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId }) => {
       }
     }, [matches, teamId, addInput]);
 
+    useEffect(() => {
+      if (comparisonMatches && comparisonMatches.length > 0) {
+        // Save to local storage if data fetch was successful
+        const value = compare + " (" + comparisonMatches[0].team +")"
+        addInput(value);
+      }
+    }, [comparisonMatches, compare, addInput]);
+
   
-    const analyzeMatches = (matches: Match[]) => {
-        const groupedByMap = matches.reduce((acc, match) => {
-          const map = match.map;
-          if (!acc[map]) {
-            acc[map] = [];
-          }
-          acc[map].push(match);
-          return acc;
-        }, {} as Record<string, Match[]>);
-        const analysis = Object.entries(groupedByMap).map(([map, matches]) => {
-          const totalMatches = matches.length;
-          const wins = matches.filter(match => match.teamWin === '1').length;
-          const winPercentage = (wins / totalMatches) * 100;
-      
-          const averageRoundDifference = (
-            matches.reduce((sum, match) => {
-              const [teamScore, opponentScore] = match.score.split(' / ').map(Number);
-              let roundDifference;
-              if (match.teamWin === '1') {
-                roundDifference = Math.max(teamScore, opponentScore) - Math.min(teamScore, opponentScore);
-              } else {
-                roundDifference = Math.min(teamScore, opponentScore) - Math.max(teamScore, opponentScore);
-              }
-              return sum + roundDifference;
-            }, 0) / totalMatches
-          ).toFixed(2);
-      
-          return {
-            map,
-            totalMatches,
-            wins,
-            winPercentage: winPercentage.toFixed(2),
-            averageRoundDifference,
-          };
-        });
-      
-        analysis.sort((a, b) => b.totalMatches - a.totalMatches);
-      
-        return analysis;
-      };
-      
-      return (
-        <div className="results">
-          {isLoading && <div className="mb-4 text-red-500">Loading...</div>}
-          {error && <div className="mb-4 text-red-500">Error: {error.message}</div>}
-          {matches && (
-            <>
-              <h2 className="mb-4 text-xl font-bold">
-                {matches.length > 0 ? `${matches[0].team} Analysis` : 'Match Analysis'}
-              </h2>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="p-2 border border-gray-300">Map</th>
-                    <th className="p-2 border border-gray-300">Total Matches</th>
-                    <th className="p-2 border border-gray-300">Wins</th>
-                    <th className="p-2 border border-gray-300">Win Percentage</th>
-                    <th className="p-2 border border-gray-300">Average Round Difference</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analyzeMatches(matches).map((result, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="p-2 border border-gray-300 text-center">{result.map}</td>
-                      <td className="p-2 border border-gray-300 text-center">{result.totalMatches}</td>
-                      <td className="p-2 border border-gray-300 text-center">{result.wins}</td>
-                      <td className="p-2 border border-gray-300 text-center">{result.winPercentage}%</td>
-                      <td className="p-2 border border-gray-300 text-center">{result.averageRoundDifference}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </div>
-      );
+    return (
+      <div className="results">
+        {(isLoading || comparisonLoading) && <div className="mb-4 text-red-500">Loading...</div>}
+        {(error || comparisonError) && <div className="mb-4 text-red-500">Error: {error?.message || comparisonError?.message}</div>}
+  
+        {matches && comparisonMatches ? (
+          <CombinedAnalysis matches={matches} comparisonMatches={comparisonMatches} />
+        ) : (
+          <>
+            {matches && <SingleTeamAnalysis analysisData={analyzeMatches(matches)} title={`${matches[0].team} Analysis`} />}
+            {comparisonMatches && <SingleTeamAnalysis analysisData={analyzeMatches(comparisonMatches)} title={`${comparisonMatches[0].team} Analysis`} />}
+          </>
+        )}
+      </div>
+    );
+  };
+  
+  interface CombinedAnalysisProps {
+    matches: Match[];
+    comparisonMatches: Match[];
+  }
+  
+  const CombinedAnalysis: React.FC<CombinedAnalysisProps> = ({ matches, comparisonMatches }) => {
+    const teamAResults = analyzeMatches(matches);
+    const teamBResults = analyzeMatches(comparisonMatches);
+
+    const teamAName = matches.length > 0 ? matches[0].team : "Team A";
+    const teamBName = comparisonMatches.length > 0 ? comparisonMatches[0].team : "Team A";
+  
+    return (
+      <>
+        <h2 className="mb-4 text-xl font-bold">Combined Analysis</h2>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border border-gray-300 text-center" rowSpan={2}>Map</th>
+              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Total Matches</th>
+              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Wins</th>
+              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Win Percentage</th>
+              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Average Round Difference</th>
+            </tr>
+            <tr className="bg-gray-100">
+              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
+              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
+              <th className="p-2 border border-gray-300 text-center">Diff</th>
+              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
+              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
+              <th className="p-2 border border-gray-300 text-center">Diff</th>
+              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
+              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
+              <th className="p-2 border border-gray-300 text-center">Diff</th>
+              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
+              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
+              <th className="p-2 border border-gray-300 text-center">Diff</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(() => {
+              const allMaps = new Set([...teamAResults.map(result => result.map), ...teamBResults.map(result => result.map)]);
+              const allMapsArray = Array.from(allMaps);
+
+              // Calculate win percentage for sorting
+              const mapsWithTeamAWinPercentage = allMapsArray.map(map => {
+                const teamAResult = getTeamResult(teamAResults, map);
+                const teamBResult = getTeamResult(teamBResults, map);
+                const teamAWinPercentage = parseFloat(teamAResult.winPercentage);
+
+                return {
+                  map,
+                  teamAWinPercentage,
+                  teamAResult,
+                  teamBResult,
+                };
+              });
+
+              // Sort maps by Team A's win percentage in descending order
+              mapsWithTeamAWinPercentage.sort((a, b) => b.teamAWinPercentage - a.teamAWinPercentage);
+
+              // Render sorted maps
+              return mapsWithTeamAWinPercentage.map(({ map, teamAResult, teamBResult }, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="p-2 border border-gray-300 text-center">{map}</td>
+                  <td className="p-2 border border-gray-300 text-center">{teamAResult.totalMatches}</td>
+                  <td className="p-2 border border-gray-300 text-center">{teamBResult.totalMatches}</td>
+                  <td className={`p-2 border border-gray-300 text-center ${teamAResult.totalMatches - teamBResult.totalMatches > 0 ? 'text-green-500' : teamAResult.totalMatches - teamBResult.totalMatches < 0 ? 'text-red-500' : ''}`}>
+                    {teamAResult.totalMatches - teamBResult.totalMatches}
+                  </td>
+                  <td className="p-2 border border-gray-300 text-center">{teamAResult.wins}</td>
+                  <td className="p-2 border border-gray-300 text-center">{teamBResult.wins}</td>
+                  <td className={`p-2 border border-gray-300 text-center ${teamAResult.wins - teamBResult.wins > 0 ? 'text-green-500' : teamAResult.wins - teamBResult.wins < 0 ? 'text-red-500' : ''}`}>
+                    {teamAResult.wins - teamBResult.wins}
+                  </td>
+                  <td className="p-2 border border-gray-300 text-center">{teamAResult.winPercentage}%</td>
+                  <td className="p-2 border border-gray-300 text-center">{teamBResult.winPercentage}%</td>
+                  <td className={`p-2 border border-gray-300 text-center ${parseFloat(teamAResult.winPercentage) - parseFloat(teamBResult.winPercentage) > 0 ? 'text-green-500' : parseFloat(teamAResult.winPercentage) - parseFloat(teamBResult.winPercentage) < 0 ? 'text-red-500' : ''}`}>
+                    {(parseFloat(teamAResult.winPercentage) - parseFloat(teamBResult.winPercentage)).toFixed(2)}%
+                  </td>
+                  <td className="p-2 border border-gray-300 text-center">{teamAResult.averageRoundDifference}</td>
+                  <td className="p-2 border border-gray-300 text-center">{teamBResult.averageRoundDifference}</td>
+                  <td className={`p-2 border border-gray-300 text-center ${parseFloat(teamAResult.averageRoundDifference) - parseFloat(teamBResult.averageRoundDifference) > 0 ? 'text-green-500' : parseFloat(teamAResult.averageRoundDifference) - parseFloat(teamBResult.averageRoundDifference) < 0 ? 'text-red-500' : ''}`}>
+                    {(parseFloat(teamAResult.averageRoundDifference) - parseFloat(teamBResult.averageRoundDifference)).toFixed(2)}
+                  </td>
+                </tr>
+              ));
+            })()}
+          </tbody>
+        </table>
+      </>
+    );
   };
   
   export default MatchAnalysis;
