@@ -3,9 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSavedInputsStore } from './stores/savedInputsStore';
+import { useDatesStateStore } from './stores/datesStore';
 import Creatable from 'react-select/creatable';
 import dynamic from 'next/dynamic'  
 import { StylesConfig } from 'react-select';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css'; // Import the CSS for the date picker
+import './datepicker.css';  // Custom styles'
 
 type Option = {
   value: string;
@@ -22,6 +26,10 @@ const HomePage: React.FC = () => {
   const searchParams = useSearchParams();
   const savedInputs = useSavedInputsStore((state) => state.savedInputs);
   const setSavedInput = useSavedInputsStore((state) => state.setSavedInputs);
+  const [afterDate, setAfterDate] = useState<Date | undefined>(undefined);
+  const [beforeDate, setBeforeDate] = useState<Date | undefined>(undefined);
+  const matchesLatestDate = useDatesStateStore((state) => state.matchesLatestDate);
+  const matchesEarliestDate = useDatesStateStore((state) => state.matchesEarliestDate);
 
   const [options, setOptions] = useState<Option[]>([]);
 
@@ -64,6 +72,10 @@ const HomePage: React.FC = () => {
       matchDarkMode.removeEventListener('change', handleChange);
     };
   }, [])
+
+  useEffect(() => {
+      console.log(matchesEarliestDate, matchesLatestDate)
+  }, [matchesEarliestDate, matchesLatestDate])
 
     const handleChange = (newValue: Option | null) => {
       if (newValue) {
@@ -143,7 +155,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="p-4">
-        Team
+        <div>Team</div>
         <Creatable
           instanceId="UUID123ixkshy"
           isClearable
@@ -154,7 +166,7 @@ const HomePage: React.FC = () => {
           placeholder="Give a FACEIT team id, team URL or select a previously queried team"
       />
 
-      Compare
+      <div>Compare</div>
       <Creatable
           instanceId="UUID123ixkshy"
           isClearable
@@ -164,7 +176,57 @@ const HomePage: React.FC = () => {
           placeholder="Compare"
           value={selectedCompareOption}
       />
-      {teamId && <MatchAnalysis teamId={teamId} compare={compareTeamId} />}
+      
+      <div>After Date</div>
+      <DatePicker
+        selected={afterDate}
+        onChange={(newDate) => {
+          if (newDate == null) {
+            setAfterDate(undefined)
+          } else {
+            setAfterDate(newDate);
+          }
+        }}
+        placeholderText="Select after date"
+        className={isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-black'}
+        showPopperArrow={false}
+        popperPlacement="bottom-start"
+        calendarClassName={isDarkMode ? 'react-datepicker-dark' : 'react-datepicker-light'}
+        minDate={matchesEarliestDate}
+        maxDate={matchesLatestDate}
+        isClearable={true}
+        openToDate={
+          afterDate !== undefined ? afterDate : matchesEarliestDate !== undefined ? matchesEarliestDate : undefined
+        }
+        disabled={(teamId === undefined || teamId === null || teamId === '')}
+        dateFormat="yyyy/MM/dd"
+      />
+
+      <div>Before Date</div>
+      <DatePicker
+        selected={beforeDate}
+        onChange={(newDate) => {
+          if (newDate == null) {
+            setBeforeDate(undefined)
+          } else {
+            setBeforeDate(newDate);
+          }
+        }}
+        placeholderText="Select before date"
+        className={isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-black'}
+        showPopperArrow={false}
+        popperPlacement="bottom-start"
+        calendarClassName={isDarkMode ? 'react-datepicker-dark' : 'react-datepicker-light'}
+        minDate={matchesEarliestDate}
+        maxDate={matchesLatestDate}
+        isClearable={true}
+        disabled={(teamId === undefined || teamId === null || teamId === '')}
+        openToDate={
+          beforeDate !== undefined ? beforeDate : matchesLatestDate !== undefined ? matchesLatestDate : undefined
+        }
+        dateFormat="yyyy/MM/dd"
+      />
+      {teamId && <MatchAnalysis teamId={teamId} compare={compareTeamId} beforeDate={beforeDate} afterDate={afterDate} />}
     </div>
 
     

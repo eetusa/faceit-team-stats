@@ -4,12 +4,15 @@ import { Match } from '../types/Match';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useSavedInputsStore } from '../stores/savedInputsStore';
+import { useDatesStateStore } from '../stores/datesStore';
 import { AnalysisResult, analyzeMatches } from '../util/analysisUtils';
 import SingleTeamAnalysis from './SingleTeamAnalysis';
 
 interface MatchAnalysisProps {
     teamId: string;
-    compare: string
+    compare: string;
+    beforeDate: Date | undefined;
+    afterDate: Date | undefined;
   }
   
 const fetchMatches = async (teamId: string): Promise<Match[]> => {
@@ -32,8 +35,10 @@ const getTeamResult = (teamResults: AnalysisResult[], map: string): AnalysisResu
   };
 };
 
-const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
+const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDate, afterDate }) => {
     const addInput = useSavedInputsStore((state) => state.addInput);
+    const setMatchesLatestDate = useDatesStateStore((state) => state.setMatchesLatestDate);
+    const setMatchesEarliestDate = useDatesStateStore((state) => state.setMatchesEarliestDate);
 
     const { data: matches, error, isLoading } = useQuery({
       queryKey: ['fetchMatches', teamId],
@@ -64,6 +69,33 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
       }
     }, [comparisonMatches, compare, addInput]);
 
+    useEffect(() => {
+      // Function to extract and convert dates from a matches array
+      const getDatesFromMatches = (matches: Match[] | undefined): number[] => {
+        if (matches && matches.length > 0) {
+          return matches.map((match: Match) => match.date);
+        }
+        return [];
+      };
+    
+      // Extract dates from both comparisonMatches and matches
+      const comparisonDates = getDatesFromMatches(comparisonMatches);
+      const matchDates = getDatesFromMatches(matches);
+    
+      // Combine the dates from both arrays
+      const allDates = [...comparisonDates, ...matchDates];
+    
+      if (allDates.length > 0) {
+        // Find the earliest and latest dates
+        const earliestDate = new Date(Math.min(...allDates));
+        const latestDate = new Date(Math.max(...allDates));
+    
+        // Use the state store functions to set the dates
+        setMatchesEarliestDate(earliestDate);
+        setMatchesLatestDate(latestDate);
+      }
+    }, [comparisonMatches, matches, setMatchesEarliestDate, setMatchesLatestDate]);
+
   
     return (
       <div className="results">
@@ -71,11 +103,11 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
         {(error || comparisonError) && <div className="mb-4 text-red-500">Error: {error?.message || comparisonError?.message}</div>}
   
         {matches && comparisonMatches ? (
-          <CombinedAnalysis matches={matches} comparisonMatches={comparisonMatches} />
+          <CombinedAnalysis matches={matches} comparisonMatches={comparisonMatches} afterDate={afterDate} beforeDate={beforeDate} />
         ) : (
           <>
-            {matches && <SingleTeamAnalysis analysisData={analyzeMatches(matches)} title={`${matches[0].team} Analysis`} />}
-            {comparisonMatches && <SingleTeamAnalysis analysisData={analyzeMatches(comparisonMatches)} title={`${comparisonMatches[0].team} Analysis`} />}
+            {matches && <SingleTeamAnalysis analysisData={analyzeMatches(matches, afterDate, beforeDate)} title={`${matches[0].team} Analysis`} />}
+            {comparisonMatches && <SingleTeamAnalysis analysisData={analyzeMatches(comparisonMatches, afterDate, beforeDate)} title={`${comparisonMatches[0].team} Analysis`} />}
           </>
         )}
       </div>
@@ -85,11 +117,13 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare }) => {
   interface CombinedAnalysisProps {
     matches: Match[];
     comparisonMatches: Match[];
+    beforeDate: Date | undefined;
+    afterDate: Date | undefined;
   }
   
-  const CombinedAnalysis: React.FC<CombinedAnalysisProps> = ({ matches, comparisonMatches }) => {
-    const teamAResults = analyzeMatches(matches);
-    const teamBResults = analyzeMatches(comparisonMatches);
+  const CombinedAnalysis: React.FC<CombinedAnalysisProps> = ({ matches, comparisonMatches, afterDate, beforeDate }) => {
+    const teamAResults = analyzeMatches(matches, afterDate, beforeDate);
+    const teamBResults = analyzeMatches(comparisonMatches, afterDate, beforeDate);
 
     const teamAName = matches.length > 0 ? matches[0].team : "Team A";
     const teamBName = comparisonMatches.length > 0 ? comparisonMatches[0].team : "Team A";
