@@ -39,6 +39,7 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
     const addInput = useSavedInputsStore((state) => state.addInput);
     const setMatchesLatestDate = useDatesStateStore((state) => state.setMatchesLatestDate);
     const setMatchesEarliestDate = useDatesStateStore((state) => state.setMatchesEarliestDate);
+    const setMatchDates = useDatesStateStore((state) => state.setMatchDates);
 
     const { data: matches, error, isLoading } = useQuery({
       queryKey: ['fetchMatches', teamId],
@@ -86,6 +87,9 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
       const allDates = [...comparisonDates, ...matchDates];
     
       if (allDates.length > 0) {
+        // Convert all timestamps to Date objects
+        const allDateObjects = allDates.map(date => new Date(date));
+    
         // Find the earliest and latest dates
         const earliestDate = new Date(Math.min(...allDates));
         const latestDate = new Date(Math.max(...allDates));
@@ -93,9 +97,12 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
         // Use the state store functions to set the dates
         setMatchesEarliestDate(earliestDate);
         setMatchesLatestDate(latestDate);
+        setMatchDates(allDateObjects);
+      } else {
+        // If no dates are available, set matchDates to undefined
+        setMatchDates(undefined);
       }
-    }, [comparisonMatches, matches, setMatchesEarliestDate, setMatchesLatestDate]);
-
+    }, [comparisonMatches, matches, setMatchesEarliestDate, setMatchesLatestDate, setMatchDates]);
   
     return (
       <div className="results">

@@ -30,6 +30,7 @@ const HomePage: React.FC = () => {
   const [beforeDate, setBeforeDate] = useState<Date | undefined>(undefined);
   const matchesLatestDate = useDatesStateStore((state) => state.matchesLatestDate);
   const matchesEarliestDate = useDatesStateStore((state) => state.matchesEarliestDate);
+  const matchDates = useDatesStateStore((state) => state.matchDates);
 
   const [options, setOptions] = useState<Option[]>([]);
 
@@ -279,6 +280,7 @@ const HomePage: React.FC = () => {
         }
         disabled={(teamId === undefined || teamId === null || teamId === '')}
         dateFormat="yyyy/MM/dd"
+        highlightDates={matchDates}
       />
 
       <div>Before Date</div>
@@ -298,6 +300,7 @@ const HomePage: React.FC = () => {
           beforeDate !== undefined ? beforeDate : matchesLatestDate !== undefined ? matchesLatestDate : undefined
         }
         dateFormat="yyyy/MM/dd"
+        highlightDates={matchDates}
       />
       {teamId && <MatchAnalysis teamId={teamId} compare={compareTeamId} beforeDate={beforeDate} afterDate={afterDate} />}
     </div>
