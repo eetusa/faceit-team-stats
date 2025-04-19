@@ -8,7 +8,6 @@ interface SavedInputsState {
 
 export const useSavedInputsStore = create<SavedInputsState>((set) => ({
     savedInputs: [],
-//   savedInputs: JSON.parse(localStorage.getItem('savedInputs') || '[]'),
     setSavedInputs: (inputs) => {
         set({ savedInputs: inputs });
         localStorage.setItem('savedInputs', JSON.stringify(inputs));

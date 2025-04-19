@@ -44,7 +44,7 @@ const HomePage: React.FC = () => {
     setSavedInput(savedInputs);
   }, [])
 
-  const handleChange = (newValue: Option | null, actionMeta: any) => {
+  const handleChange = (newValue: Option | null) => {
     if (newValue) {
       const teamId: string = newValue.value;
       setTeamId(teamId);
@@ -55,7 +55,7 @@ const HomePage: React.FC = () => {
       // Assuming you have a routing mechanism in place
       router.push(`?${query.toString()}`, { scroll: false });
     } else {
-      setTeamId(null);
+      setTeamId('');
       router.push("/");
     }
   };
