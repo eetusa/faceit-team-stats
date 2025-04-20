@@ -2,11 +2,12 @@
 
 import { Match } from '../types/Match';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSavedInputsStore } from '../stores/savedInputsStore';
 import { useDatesStateStore } from '../stores/datesStore';
 import { AnalysisResult, analyzeMatches } from '../util/analysisUtils';
 import SingleTeamAnalysis from './SingleTeamAnalysis';
+import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getSortedRowModel, SortingState } from '@tanstack/react-table';
 
 interface MatchAnalysisProps {
     teamId: string;
@@ -14,6 +15,10 @@ interface MatchAnalysisProps {
     beforeDate: Date | undefined;
     afterDate: Date | undefined;
   }
+  type CombinedAnalysisData = AnalysisResult & {
+    teamBResult: AnalysisResult;
+  };
+  const columnHelper = createColumnHelper<CombinedAnalysisData>();
   
 const fetchMatches = async (teamId: string): Promise<Match[]> => {
   const response = await fetch(`/api/teams/${teamId}`);
@@ -24,16 +29,16 @@ const fetchMatches = async (teamId: string): Promise<Match[]> => {
 };
 
 
-const getTeamResult = (teamResults: AnalysisResult[], map: string): AnalysisResult => {
-  const result = teamResults.find((r: AnalysisResult) => r.map === map);
-  return result || {
-    map,
-    totalMatches: 0,
-    wins: 0,
-    winPercentage: "0.00",
-    averageRoundDifference: "0.00"
-  };
-};
+// const getTeamResult = (teamResults: AnalysisResult[], map: string): AnalysisResult => {
+//   const result = teamResults.find((r: AnalysisResult) => r.map === map);
+//   return result || {
+//     map,
+//     totalMatches: 0,
+//     wins: 0,
+//     winPercentage: "0.00",
+//     averageRoundDifference: "0.00"
+//   };
+// };
 
 const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDate, afterDate }) => {
     const addInput = useSavedInputsStore((state) => state.addInput);
@@ -127,90 +132,185 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
     beforeDate: Date | undefined;
     afterDate: Date | undefined;
   }
-  
-  const CombinedAnalysis: React.FC<CombinedAnalysisProps> = ({ matches, comparisonMatches, afterDate, beforeDate }) => {
-    const teamAResults = analyzeMatches(matches, afterDate, beforeDate);
-    const teamBResults = analyzeMatches(comparisonMatches, afterDate, beforeDate);
 
+  const CombinedAnalysis: React.FC<CombinedAnalysisProps> = ({ matches, comparisonMatches, afterDate, beforeDate }) => {
+    const [sorting, setSorting] = useState<SortingState>([]);
+    
     const teamAName = matches.length > 0 ? matches[0].team : "Team A";
-    const teamBName = comparisonMatches.length > 0 ? comparisonMatches[0].team : "Team A";
+    const teamBName = comparisonMatches.length > 0 ? comparisonMatches[0].team : "Team B";
+  
+    const data = useMemo(() => {
+      const teamAResults = analyzeMatches(matches, afterDate, beforeDate);
+      const teamBResults = analyzeMatches(comparisonMatches, afterDate, beforeDate);
+  
+      const allMaps = new Set([...teamAResults.map(result => result.map), ...teamBResults.map(result => result.map)]);
+      
+      return Array.from(allMaps).map(map => {
+        const teamAResult = teamAResults.find(result => result.map === map) || {
+          map,
+          totalMatches: 0,
+          wins: 0,
+          winPercentage: '0',
+          averageRoundDifference: '0',
+        };
+        const teamBResult = teamBResults.find(result => result.map === map) || {
+          map,
+          totalMatches: 0,
+          wins: 0,
+          winPercentage: '0',
+          averageRoundDifference: '0',
+        };
+        return {
+          ...teamAResult,
+          teamBResult
+        };
+      });
+    }, [matches, comparisonMatches, afterDate, beforeDate]);
+    
+    const columns = useMemo(() => [
+      columnHelper.accessor('map', {
+        header: 'Map',
+        cell: info => info.getValue(),
+        id: 'Map'
+      }),
+      columnHelper.group({
+        header: 'Total Matches',
+        id: 'total_matches',
+        columns: [
+          columnHelper.accessor('totalMatches', {
+            header: teamAName,
+            id: 'total_matches_a',
+            cell: info => info.getValue(),
+          }),
+          columnHelper.accessor(row => row.teamBResult.totalMatches, {
+            header: teamBName,
+            id: 'total_matches_b',
+            cell: info => info.getValue(),
+          }),
+          columnHelper.accessor(row => row.totalMatches - row.teamBResult.totalMatches, {
+            id: 'totalMatchesDiff',
+            header: 'Diff',
+            cell: info => <span className={info.getValue() > 0 ? 'text-green-500' : info.getValue() < 0 ? 'text-red-500' : ''}>{info.getValue()}</span>,
+          }),
+        ],
+      }),
+      columnHelper.group({
+        header: 'Wins',
+        id: 'wins',
+        columns: [
+          columnHelper.accessor('wins', {
+            header: teamAName,
+            id: 'wins_a',
+            cell: info => info.getValue(),
+          }),
+          columnHelper.accessor(row => row.teamBResult.wins, {
+            header: teamBName,
+            id: 'wins_b',
+            cell: info => info.getValue(),
+          }),
+          columnHelper.accessor(row => row.wins - row.teamBResult.wins, {
+            id: 'winsDiff',
+            header: 'Diff',
+            cell: info => <span className={info.getValue() > 0 ? 'text-green-500' : info.getValue() < 0 ? 'text-red-500' : ''}>{info.getValue()}</span>,
+          }),
+        ],
+      }),
+      columnHelper.group({
+        header: 'Win Percentage',
+        id: 'winpercentage',
+        columns: [
+          columnHelper.accessor('winPercentage', {
+            header: teamAName,
+            id: 'winpercentage_a',
+            cell: info => `${info.getValue()}%`,
+          }),
+          columnHelper.accessor(row => row.teamBResult.winPercentage, {
+            header: teamBName,
+            id: 'winpercentage_b',
+            cell: info => `${info.getValue()}%`,
+          }),
+          columnHelper.accessor(row => parseFloat(row.winPercentage) - parseFloat(row.teamBResult.winPercentage), {
+            id: 'winPercentageDiff',
+            header: 'Diff',
+            cell: info => <span className={info.getValue() > 0 ? 'text-green-500' : info.getValue() < 0 ? 'text-red-500' : ''}>{info.getValue().toFixed(2)}%</span>,
+          }),
+        ],
+      }),
+      columnHelper.group({
+        header: 'Average Round Difference',
+        id: 'rounddiff',
+        columns: [
+          columnHelper.accessor('averageRoundDifference', {
+            header: teamAName,
+            id: 'rounddiff_a',
+            cell: info => info.getValue(),
+          }),
+          columnHelper.accessor(row => row.teamBResult.averageRoundDifference, {
+            header: teamBName,
+            id: 'rounddiff_b',
+            cell: info => info.getValue(),
+          }),
+          columnHelper.accessor(row => parseFloat(row.averageRoundDifference) - parseFloat(row.teamBResult.averageRoundDifference), {
+            id: 'averageRoundDifferenceDiff',
+            header: 'Diff',
+            cell: info => <span className={info.getValue() > 0 ? 'text-green-500' : info.getValue() < 0 ? 'text-red-500' : ''}>{info.getValue().toFixed(2)}</span>,
+          }),
+        ],
+      }),
+    ], [teamAName, teamBName]);
+  
+    const table = useReactTable({
+      data,
+      columns,
+      getCoreRowModel: getCoreRowModel(),
+      getSortedRowModel: getSortedRowModel(),
+      onSortingChange: setSorting,
+      state: { sorting }
+    });
   
     return (
       <>
         <h2 className="mb-4 text-xl font-bold">Combined Analysis</h2>
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              <th className="p-2 border border-gray-300 text-center" rowSpan={2}>Map</th>
-              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Total Matches</th>
-              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Wins</th>
-              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Win Percentage</th>
-              <th className="p-2 border border-gray-300 text-center" colSpan={3}>Average Round Difference</th>
-            </tr>
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
-              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
-              <th className="p-2 border border-gray-300 text-center">Diff</th>
-              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
-              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
-              <th className="p-2 border border-gray-300 text-center">Diff</th>
-              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
-              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
-              <th className="p-2 border border-gray-300 text-center">Diff</th>
-              <th className="p-2 border border-gray-300 text-center">{teamAName}</th>
-              <th className="p-2 border border-gray-300 text-center">{teamBName}</th>
-              <th className="p-2 border border-gray-300 text-center">Diff</th>
-            </tr>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} colSpan={header.colSpan} className="p-2 border border-gray-300 text-center">
+                    {header.isPlaceholder ? null : (
+                      <div
+                        className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}
+                        onClick={header.column.getToggleSortingHandler()}
+                        title={header.column.getCanSort() 
+                          ? header.column.getNextSortingOrder() === 'desc'
+                            ? 'Sort desceding'
+                            : header.column.getNextSortingOrder() === 'asc'
+                              ? 'Sort ascending'
+                              : 'Clear sort'
+                          : undefined}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{
+                          asc: ' 🔼',
+                          desc: ' 🔽',
+                        }[header.column.getIsSorted() as string] ?? null}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
           </thead>
           <tbody>
-            {(() => {
-              const allMaps = new Set([...teamAResults.map(result => result.map), ...teamBResults.map(result => result.map)]);
-              const allMapsArray = Array.from(allMaps);
-
-              // Calculate win percentage for sorting
-              const mapsWithTeamAWinPercentage = allMapsArray.map(map => {
-                const teamAResult = getTeamResult(teamAResults, map);
-                const teamBResult = getTeamResult(teamBResults, map);
-                const teamAWinPercentage = parseFloat(teamAResult.winPercentage);
-
-                return {
-                  map,
-                  teamAWinPercentage,
-                  teamAResult,
-                  teamBResult,
-                };
-              });
-
-              // Sort maps by Team A's win percentage in descending order
-              mapsWithTeamAWinPercentage.sort((a, b) => b.teamAWinPercentage - a.teamAWinPercentage);
-
-              // Render sorted maps
-              return mapsWithTeamAWinPercentage.map(({ map, teamAResult, teamBResult }, index) => (
-                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'}>
-                  <td className="p-2 border border-gray-300 text-center">{map}</td>
-                  <td className="p-2 border border-gray-300 text-center">{teamAResult.totalMatches}</td>
-                  <td className="p-2 border border-gray-300 text-center">{teamBResult.totalMatches}</td>
-                  <td className={`p-2 border border-gray-300 text-center ${teamAResult.totalMatches - teamBResult.totalMatches > 0 ? 'text-green-500' : teamAResult.totalMatches - teamBResult.totalMatches < 0 ? 'text-red-500' : ''}`}>
-                    {teamAResult.totalMatches - teamBResult.totalMatches}
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id} className={row.index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} className="p-2 border border-gray-300 text-center">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
-                  <td className="p-2 border border-gray-300 text-center">{teamAResult.wins}</td>
-                  <td className="p-2 border border-gray-300 text-center">{teamBResult.wins}</td>
-                  <td className={`p-2 border border-gray-300 text-center ${teamAResult.wins - teamBResult.wins > 0 ? 'text-green-500' : teamAResult.wins - teamBResult.wins < 0 ? 'text-red-500' : ''}`}>
-                    {teamAResult.wins - teamBResult.wins}
-                  </td>
-                  <td className="p-2 border border-gray-300 text-center">{teamAResult.winPercentage}%</td>
-                  <td className="p-2 border border-gray-300 text-center">{teamBResult.winPercentage}%</td>
-                  <td className={`p-2 border border-gray-300 text-center ${parseFloat(teamAResult.winPercentage) - parseFloat(teamBResult.winPercentage) > 0 ? 'text-green-500' : parseFloat(teamAResult.winPercentage) - parseFloat(teamBResult.winPercentage) < 0 ? 'text-red-500' : ''}`}>
-                    {(parseFloat(teamAResult.winPercentage) - parseFloat(teamBResult.winPercentage)).toFixed(2)}%
-                  </td>
-                  <td className="p-2 border border-gray-300 text-center">{teamAResult.averageRoundDifference}</td>
-                  <td className="p-2 border border-gray-300 text-center">{teamBResult.averageRoundDifference}</td>
-                  <td className={`p-2 border border-gray-300 text-center ${parseFloat(teamAResult.averageRoundDifference) - parseFloat(teamBResult.averageRoundDifference) > 0 ? 'text-green-500' : parseFloat(teamAResult.averageRoundDifference) - parseFloat(teamBResult.averageRoundDifference) < 0 ? 'text-red-500' : ''}`}>
-                    {(parseFloat(teamAResult.averageRoundDifference) - parseFloat(teamBResult.averageRoundDifference)).toFixed(2)}
-                  </td>
-                </tr>
-              ));
-            })()}
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </>

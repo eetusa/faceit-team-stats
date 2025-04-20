@@ -44,8 +44,17 @@ export const analyzeMatches = (
 
     const averageRoundDifference = (
       matches.reduce((sum, match) => {
-        const [teamScore, opponentScore] = match.score.split(' / ').map(Number);
-        const roundDifference = Math.abs(teamScore - opponentScore);
+        const [teamAScore, teamBScore] = match.score.split(' / ').map(Number);
+        let roundDifference;
+
+        if (match.teamWin === '1') {
+          // Team won, calculate positive difference
+          roundDifference = Math.abs(teamAScore - teamBScore);
+        } else {
+          // Team lost, calculate negative difference
+          roundDifference = -Math.abs(teamAScore - teamBScore);
+        }
+
         return sum + roundDifference;
       }, 0) / totalMatches
     ).toFixed(2);
