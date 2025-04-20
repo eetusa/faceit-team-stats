@@ -4,8 +4,8 @@ export interface AnalysisResult {
   map: string;
   totalMatches: number;
   wins: number;
-  winPercentage: string;
-  averageRoundDifference: string;
+  winPercentage: number;
+  averageRoundDifference: number;
 }
 
 export const analyzeMatches = (
@@ -63,8 +63,8 @@ export const analyzeMatches = (
       map,
       totalMatches,
       wins,
-      winPercentage: winPercentage.toFixed(2),
-      averageRoundDifference,
+      winPercentage: parseFloat(winPercentage.toFixed(2)), // Convert string to number
+      averageRoundDifference: parseFloat(averageRoundDifference), // Convert string to number,
     };
   });
 };

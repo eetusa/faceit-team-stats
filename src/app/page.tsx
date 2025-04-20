@@ -48,9 +48,6 @@ const HomePage: React.FC = () => {
     if (compareIdFromUrl) {
       setCompareTeamId(compareIdFromUrl);
     }
-    console.log("ASD")
-    console.log(unixAfter)
-    console.log(unixBefore)
     if (unixBefore) {
       const unixTimestamp = Number(unixBefore);
       if (!isNaN(unixTimestamp)) {
@@ -97,12 +94,6 @@ const HomePage: React.FC = () => {
   }, [])
 
   useEffect(() => {
-      console.log(matchesEarliestDate, matchesLatestDate)
-  }, [matchesEarliestDate, matchesLatestDate])
-
-  useEffect(() => {
-    console.log("====")
-    console.log(afterDate, beforeDate)
   }, [afterDate, beforeDate])
 
     const handleChange = (newValue: Option | null) => {

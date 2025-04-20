@@ -29,17 +29,6 @@ const fetchMatches = async (teamId: string): Promise<Match[]> => {
 };
 
 
-// const getTeamResult = (teamResults: AnalysisResult[], map: string): AnalysisResult => {
-//   const result = teamResults.find((r: AnalysisResult) => r.map === map);
-//   return result || {
-//     map,
-//     totalMatches: 0,
-//     wins: 0,
-//     winPercentage: "0.00",
-//     averageRoundDifference: "0.00"
-//   };
-// };
-
 const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDate, afterDate }) => {
     const addInput = useSavedInputsStore((state) => state.addInput);
     const setMatchesLatestDate = useDatesStateStore((state) => state.setMatchesLatestDate);
@@ -150,15 +139,15 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
           map,
           totalMatches: 0,
           wins: 0,
-          winPercentage: '0',
-          averageRoundDifference: '0',
+          winPercentage: 0,
+          averageRoundDifference: 0,
         };
         const teamBResult = teamBResults.find(result => result.map === map) || {
           map,
           totalMatches: 0,
           wins: 0,
-          winPercentage: '0',
-          averageRoundDifference: '0',
+          winPercentage: 0,
+          averageRoundDifference: 0,
         };
         return {
           ...teamAResult,
@@ -229,7 +218,7 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
             id: 'winpercentage_b',
             cell: info => `${info.getValue()}%`,
           }),
-          columnHelper.accessor(row => parseFloat(row.winPercentage) - parseFloat(row.teamBResult.winPercentage), {
+          columnHelper.accessor(row => row.winPercentage - row.teamBResult.winPercentage, {
             id: 'winPercentageDiff',
             header: 'Diff',
             cell: info => <span className={info.getValue() > 0 ? 'text-green-500' : info.getValue() < 0 ? 'text-red-500' : ''}>{info.getValue().toFixed(2)}%</span>,
@@ -250,7 +239,7 @@ const MatchAnalysis: React.FC<MatchAnalysisProps> = ({ teamId, compare, beforeDa
             id: 'rounddiff_b',
             cell: info => info.getValue(),
           }),
-          columnHelper.accessor(row => parseFloat(row.averageRoundDifference) - parseFloat(row.teamBResult.averageRoundDifference), {
+          columnHelper.accessor(row => row.averageRoundDifference - row.teamBResult.averageRoundDifference, {
             id: 'averageRoundDifferenceDiff',
             header: 'Diff',
             cell: info => <span className={info.getValue() > 0 ? 'text-green-500' : info.getValue() < 0 ? 'text-red-500' : ''}>{info.getValue().toFixed(2)}</span>,
